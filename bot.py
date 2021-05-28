@@ -9,7 +9,10 @@ import typing
 import datetime
 import spacy
 import wikipedia
+import requests
+import random
 import asyncio
+import html
 
 logging.basicConfig(level=logging.INFO)
 
@@ -73,7 +76,9 @@ class A2AFilter(MessageFilter):
 class MentionOrReply(MessageFilter):
 
     async def matches(self, message):
-        if hasattr(message, 'reference') and message.reference is not None:
+        if message.author.name == NAME:
+            return False
+        elif hasattr(message, 'reference') and message.reference is not None:
             ref = message.reference.message_id
             ref_msg = await message.channel.fetch_message(ref)
             if ref_msg.author.name == NAME:
@@ -95,6 +100,30 @@ class IsThankYou(MessageFilter):
 
     async def respond(self, message):
         await message.add_reaction("🥰")
+
+
+class IsScold(MessageFilter):
+
+    async def matches(self, message):
+        return any(word in message.content.lower() for word in
+                   ("bad bot",))
+
+    async def respond(self, message):
+        await message.reply("https://tenor.com/view/nichijou-nano-silly-stupid-gif-20046613")
+
+
+class AnyoneAgree(MessageFilter):
+
+    def __init__(self, names):
+        self.names = names
+
+    async def matches(self, message):
+        return (message.author is not None and
+                message.author.name in self.names and
+                "back me up" in message.content.lower())
+
+    async def respond(self, message):
+        await message.reply(f"I completely agree with {message.author.display_name} on this one")
 
 
 class ComboFilter(MessageFilter):
@@ -123,23 +152,51 @@ class OwnerCommands(commands.Cog):
                 RecentJoinFilter(), A2AFilter())),
             ComboFilter((WatchedChannelFilter(
                 ('general', 'academic-help', '🤖bot-commands', 'bot-commands')),
-                MentionOrReply(), IsThankYou()))
+                MentionOrReply(), IsThankYou())),
+            ComboFilter((WatchedChannelFilter(
+                ('general', 'academic-help', '🤖bot-commands', 'bot-commands')),
+                MentionOrReply(), IsScold())),
+            ComboFilter((WatchedChannelFilter(
+                ('general', 'academic-help', '🤖bot-commands', 'bot-commands')),
+                AnyoneAgree(('PollardsRho', 'xoxo'))))
         )
+        self.token = ""
+        self.qs_with_answers = {}
+        self.answer_choices = "🇦🇧🇨🇩"
 
-    @ commands.Cog.listener()
+    @commands.Cog.listener()
     async def on_ready(self):
         logging.info("OwnerCommands Is Ready")
-        game = discord.Game("with spacetime")
+        game = discord.Game("with Sakamoto")
+        r = requests.get("https://opentdb.com/api_token.php?command=request")
+        r.raise_for_status()
+        self.token = r.json()['token']
         await self.client.change_presence(status=discord.Status.idle, activity=game)
 
-    @ commands.Cog.listener()
+    @commands.Cog.listener()
     async def on_message(self, msg):
+        logging.info(msg.author)
+        logging.info(msg.author.name)
         for f in self.filters:
             if (await f.matches(msg)):
                 logging.info(f"{msg.content} matched {f}...")
                 await f.respond(msg)
             else:
                 logging.info(f"{msg.content} did not match {f}...")
+
+    @commands.Cog.listener()
+    async def on_reaction_add(self, rxn, user):
+        msg = rxn.message
+        logging.info(msg.id)
+        logging.info(self.qs_with_answers)
+        logging.info(rxn.me)
+        if msg.id in self.qs_with_answers and user.name != "Nano":
+            logging.info(rxn)
+            logging.info(user)
+            correct_char = self.answer_choices[self.qs_with_answers[msg.id]]
+            if str(rxn) == correct_char:
+                del self.qs_with_answers[msg.id]
+                await msg.channel.send("Correct, good job {}!".format(user.mention))
 
     @ commands.command()
     @ commands.is_owner()
@@ -204,12 +261,41 @@ class OwnerCommands(commands.Cog):
 
             logging.info(suggested)
             try:
-                text = wikipedia.summary(suggested, sentences=3).replace('\n', '\n\n')
+                text = wikipedia.summary(suggested, sentences=2).replace('\n', '\n\n')
             except wikipedia.exceptions.DisambiguationError:
                 text = "Your query wasn't specific enough."
             except wikipedia.exceptions.PageError:
                 text = "Page not found, try again."
         await ctx.send(text)
+
+    @ commands.command("activate!")
+    async def get_em(self, ctx):
+        await ctx.send("https://tenor.com/view/nano-nichijou-gif-21640782")
+
+    @ commands.command()
+    async def trivia(self, ctx):
+        r = requests.get(f"https://opentdb.com/api.php?amount=1&type=multiple&token={self.token}")
+        json = r.json()
+        logging.info(json)
+        if json['response_code'] != 0:
+            await ctx.send("There was an error!")
+        else:
+            q = json['results'][0]
+            logging.info(q)
+            cor_answer = q['correct_answer']
+            inc_answers = q['incorrect_answers']
+            num_ans = len(inc_answers) + 1
+            answers = inc_answers
+            correct_answer_num = random.randrange(num_ans)
+            answers.insert(correct_answer_num, cor_answer)
+            text = f"""{html.unescape(q['question'])}
+🇦 → {html.unescape(answers[0])}
+🇧 → {html.unescape(answers[1])}
+🇨 → {html.unescape(answers[2])}
+🇩 → {html.unescape(answers[3])}"""
+            msg = await ctx.send(text)
+            self.qs_with_answers[msg.id] = correct_answer_num
+            await asyncio.gather(*[msg.add_reaction(c) for c in self.answer_choices])
 
 
 def setup(client):
