@@ -8,6 +8,8 @@ import pandas as pd
 import typing
 import datetime
 import spacy
+import wikipedia
+import asyncio
 
 logging.basicConfig(level=logging.INFO)
 
@@ -15,6 +17,8 @@ intents = discord.Intents.default()
 intents.members = True
 
 a2a_nlp = spacy.load("textcat_demo/training/model-best")
+
+NAME = "Nano"
 
 
 def user_joined(user):
@@ -28,7 +32,7 @@ def user_joined(user):
 class MessageFilter():
     """Specific way of filtering messages and handling them accordingly."""
 
-    def matches(self, message):
+    async def matches(self, message):
         raise NotImplementedError()
 
     async def respond(self, message):
@@ -38,13 +42,16 @@ class MessageFilter():
 class WatchedChannelFilter(MessageFilter):
     """Filter for general and academic-help channels only."""
 
-    def matches(self, message):
+    def __init__(self, channel_prefs):
+        self.channel_prefs = channel_prefs
+
+    async def matches(self, message):
         return any([message.channel.name.startswith(pref) for pref in
-                    ['general', 'academic-help', '🤖bot-commands', 'bot-commands']])
+                    self.channel_prefs])
 
 
 class RecentJoinFilter(MessageFilter):
-    def matches(self, message):
+    async def matches(self, message):
         joined = user_joined(message.author)
         return joined is not None and (message.created_at - joined) < datetime.timedelta(minutes=5)
 
@@ -52,7 +59,7 @@ class RecentJoinFilter(MessageFilter):
 class A2AFilter(MessageFilter):
     """Filter for ask-to-ask messages."""
 
-    def matches(self, message):
+    async def matches(self, message):
         cats = a2a_nlp(message.content.lower()).cats
         return cats['BAD'] * 100 > cats['GOOD']
 
@@ -65,14 +72,24 @@ class A2AFilter(MessageFilter):
 
 class MentionOrReply(MessageFilter):
 
-    def matches(self, message):
-        return ((hasattr(message, 'reference') and message.reference is not None and message.reference.author.name == "Nagisa") or
-                any(member.name == 'Nagisa' for member in message.mentions))
+    async def matches(self, message):
+        if hasattr(message, 'reference') and message.reference is not None:
+            ref = message.reference.message_id
+            ref_msg = await message.channel.fetch_message(ref)
+            if ref_msg.author.name == NAME:
+                logging.info(ref_msg)
+                logging.info(ref_msg, ref_msg.author)
+                logging.info(message)
+                logging.info(message.channel)
+                logging.info(message.reference)
+                return True
+        else:
+            return any(member.name == 'Nano' for member in message.mentions)
 
 
 class IsThankYou(MessageFilter):
 
-    def matches(self, message):
+    async def matches(self, message):
         return any(word in message.content.lower() for word in
                    ("thank", "thanks", "good bot"))
 
@@ -85,8 +102,12 @@ class ComboFilter(MessageFilter):
     def __init__(self, filters):
         self.filters = filters
 
-    def matches(self, message):
-        return all([f.matches(message) for f in self.filters])
+    async def matches(self, message):
+        matches = []
+        for f in self.filters:
+            does_match = await f.matches(message)
+            matches.append(does_match)
+        return all(matches)
 
     async def respond(self, message):
         for f in self.filters:
@@ -97,35 +118,39 @@ class OwnerCommands(commands.Cog):
     def __init__(self, client):
         self.client = client
         self.filters = (
-            ComboFilter([WatchedChannelFilter(), RecentJoinFilter(), A2AFilter()]),
-            ComboFilter([WatchedChannelFilter(), MentionOrReply(), IsThankYou()])
+            ComboFilter((WatchedChannelFilter(
+                ('general', 'academic-help', '🤖bot-commands', 'bot-commands')),
+                RecentJoinFilter(), A2AFilter())),
+            ComboFilter((WatchedChannelFilter(
+                ('general', 'academic-help', '🤖bot-commands', 'bot-commands')),
+                MentionOrReply(), IsThankYou()))
         )
 
-    @commands.Cog.listener()
+    @ commands.Cog.listener()
     async def on_ready(self):
         logging.info("OwnerCommands Is Ready")
         game = discord.Game("with spacetime")
         await self.client.change_presence(status=discord.Status.idle, activity=game)
 
-    @commands.Cog.listener()
+    @ commands.Cog.listener()
     async def on_message(self, msg):
         for f in self.filters:
-            if f.matches(msg):
+            if (await f.matches(msg)):
                 logging.info(f"{msg.content} matched {f}...")
                 await f.respond(msg)
             else:
                 logging.info(f"{msg.content} did not match {f}...")
 
-    @commands.command()
-    @commands.is_owner()
+    @ commands.command()
+    @ commands.is_owner()
     async def servers(self, ctx):
         activeservers = self.client.guilds
         for guild in activeservers:
             await ctx.send(guild.name)
             logging.info(guild.name)
 
-    @commands.command()
-    @commands.is_owner()
+    @ commands.command()
+    @ commands.is_owner()
     async def scrape(self, ctx, limit: typing.Optional[int] = 200):
         self.msgs = []
         async with ctx.typing():
@@ -158,22 +183,40 @@ class OwnerCommands(commands.Cog):
                     else:
                         logging.info("Not a match, moving on")
             logging.info("Done!")
-            await ctx.send(f"Done! Scraped {num_msgs} messages")
+        await ctx.send(f"Done! Scraped {num_msgs} messages")
 
-    @commands.command()
-    @commands.is_owner()
+    @ commands.command()
+    @ commands.is_owner()
     async def write(self, ctx, filename: typing.Optional[str] = "messages"):
         async with ctx.typing():
             msg_df = pd.DataFrame(self.msgs)
             msg_df.to_csv(filename + ".csv", index=False)
-            await ctx.send(f"Done! Logged {len(self.msgs)} messages!")
+        await ctx.send(f"Done! Logged {len(self.msgs)} messages!")
+
+    @ commands.command()
+    async def wiki(self, ctx, *args):
+        async with ctx.typing():
+            search_term = ' '.join(args)
+            logging.info(search_term)
+            suggested = wikipedia.suggest(search_term)
+            if suggested is None:
+                suggested = wikipedia.search(search_term)[0]
+
+            logging.info(suggested)
+            try:
+                text = wikipedia.summary(suggested, sentences=3).replace('\n', '\n\n')
+            except wikipedia.exceptions.DisambiguationError:
+                text = "Your query wasn't specific enough."
+            except wikipedia.exceptions.PageError:
+                text = "Page not found, try again."
+        await ctx.send(text)
 
 
 def setup(client):
     client.add_cog(OwnerCommands(client))
 
 
-bot = commands.Bot('Nagisa, ', intents=intents)
+bot = commands.Bot(f'{NAME}, ', intents=intents)
 setup(bot)
 bot.run(TOKEN)
 

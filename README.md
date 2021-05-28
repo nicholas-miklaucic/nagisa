@@ -1,7 +1,7 @@
 # Nagisa
 ## Homework Help Bot
 
-![Image of Nagisa Furukawa, from Clannad](https://pbs.twimg.com/media/B-iAh1gCYAA_SH5?format=jpg&name=900x900)
+![Image of Nano Shinonome, from Nichijou](https://e7.pngegg.com/pngimages/683/453/png-clipart-nano-shinonome-nichijou-anime-nichijou-mammal-child.png)
 
 Work-in-progress bot for the Homework Help Voice server. Planned functionality:
 
