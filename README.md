@@ -1,7 +1,7 @@
 # Nagisa
 ## Homework Help Bot
 
-![Image of Nano Shinonome, from Nichijou](https://e7.pngegg.com/pngimages/683/453/png-clipart-nano-shinonome-nichijou-anime-nichijou-mammal-child.png)
+![Image of Nano Shinonome, from Nichijou](https://www.skial.com/data/avatars/l/24/24179.jpg?1413497619)
 
 Work-in-progress bot for the Homework Help Voice server. Planned functionality:
 
