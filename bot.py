@@ -2,7 +2,7 @@
 
 import discord
 from discord.ext import commands
-from secrets import TOKEN
+from secrets import TOKEN, MW_DICT_KEY
 import logging
 import pandas as pd
 import typing
@@ -13,6 +13,7 @@ import requests
 import random
 import asyncio
 import html
+from urllib.parse import quote
 
 logging.basicConfig(level=logging.INFO)
 
@@ -22,6 +23,19 @@ intents.members = True
 a2a_nlp = spacy.load("textcat_demo/training/model-best")
 
 NAME = "Nano"
+
+
+BASEURL = "https://dictionaryapi.com/api/v3/references/collegiate/json/{}?key={}"
+
+
+def define(word):
+    j = requests.get(BASEURL.format(quote(word), MW_DICT_KEY)).json()
+    defs = []
+    for definition in j:
+        if definition['meta']['id'].split(':')[0] == word:
+            defs += definition['shortdef']
+
+    return [f'{i+1}: ' + x.capitalize() for (i, x) in enumerate(defs)]
 
 
 def user_joined(user):
@@ -158,7 +172,8 @@ class OwnerCommands(commands.Cog):
                 MentionOrReply(), IsScold())),
             ComboFilter((WatchedChannelFilter(
                 ('general', 'academic-help', '🤖bot-commands', 'bot-commands')),
-                AnyoneAgree(('PollardsRho', 'xoxo'))))
+                AnyoneAgree(('PollardsRho', 'xoxo', 'Neyo708', 'Button{R}',
+                             '49PES', 'DanTheCurrencyExchangeMan'))))
         )
         self.token = ""
         self.qs_with_answers = {}
@@ -296,6 +311,16 @@ class OwnerCommands(commands.Cog):
             msg = await ctx.send(text)
             self.qs_with_answers[msg.id] = correct_answer_num
             await asyncio.gather(*[msg.add_reaction(c) for c in self.answer_choices])
+
+    @commands.command()
+    async def define(self, ctx, *args):
+        async with ctx.typing():
+            word = ' '.join(args)
+            text = '\n'.join(define(word))
+        if text:
+            await ctx.send(text)
+        else:
+            await ctx.send("Couldn't find definition. Sorry! >_<")
 
 
 def setup(client):
