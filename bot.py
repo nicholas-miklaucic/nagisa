@@ -206,6 +206,8 @@ class ForeignLangFilter(MessageFilter):
     async def matches(self, message):
         if len(message.content) <= 30:
             return False
+        elif message.content.startswith("Nano, "):
+            return False
         else:
             langs = detect_langs(message.content)
             if langs and langs[0].lang == 'en':
@@ -215,7 +217,13 @@ class ForeignLangFilter(MessageFilter):
                 return any([lang.lang != 'en' and lang.prob > 0.99 for lang in langs])
 
     async def respond(self, message):
-        translated = self.translator.translate(message.content)
+        if message.content.startswith("Nano, translate"):
+            content = message.content[len("Nano, translate"):]
+        elif message.content.startswith("Nano, tl"):
+            content = message.content[len("Nano, tl"):]
+        else:
+            content = message.content
+        translated = self.translator.translate(content)
         await message.reply(f"Translated from {to_name(translated.src)}: {translated.text}")
 
 
@@ -440,6 +448,10 @@ class OwnerCommands(commands.Cog):
             await ForeignLangFilter().respond(ctx.message)
         except LangDetectException:
             await ctx.send("Could not infer source language. Darn! >_<")
+
+    @commands.command()
+    async def tl(self, ctx, *args):
+        await self.translate(ctx, *args)
 
 
 def setup(client):
