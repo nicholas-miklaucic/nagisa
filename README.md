@@ -1,4 +1,4 @@
-# Nagisa
+# Nano
 ## Homework Help Bot
 
 ![Image of Nano Shinonome, from Nichijou](https://www.skial.com/data/avatars/l/24/24179.jpg?1413497619)
