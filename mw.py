@@ -13,26 +13,26 @@ def to_small_caps(text: str) -> str:
 
 def to_italics(text: str) -> str:
     """Converts text to Markdown italics. Doesn't work for text with asterisks."""
-    return f'*{text}*'
+    return f"*{text}*"
 
 
 def to_bold(text: str) -> str:
     """Converts text to Markdown bold. Doesn't work for text with asterisks."""
-    return f'**{text}**'
+    return f"**{text}**"
 
 
 SUPERSCRIPT_NUMS = {str(i): chr(8304 + i) for i in range(10)}
 # fix annoying edge cases
-SUPERSCRIPT_NUMS['1'] = '\u00b9'
-SUPERSCRIPT_NUMS['2'] = '\u00b2'
-SUPERSCRIPT_NUMS['3'] = '\u00b3'
-SUPERSCRIPT_NUMS['+'] = '\u207a'
-SUPERSCRIPT_NUMS['-'] = '\u207b'
+SUPERSCRIPT_NUMS["1"] = "\u00b9"
+SUPERSCRIPT_NUMS["2"] = "\u00b2"
+SUPERSCRIPT_NUMS["3"] = "\u00b3"
+SUPERSCRIPT_NUMS["+"] = "\u207a"
+SUPERSCRIPT_NUMS["-"] = "\u207b"
 SUPERSCRIPT_TRANS = str.maketrans(SUPERSCRIPT_NUMS)
 
 SUBSCRIPT_NUMS = {str(i): chr(8320 + i) for i in range(10)}
-SUBSCRIPT_NUMS['+'] = '\u208a'
-SUBSCRIPT_NUMS['-'] = '\u208b'
+SUBSCRIPT_NUMS["+"] = "\u208a"
+SUBSCRIPT_NUMS["-"] = "\u208b"
 SUBSCRIPT_TRANS = str.maketrans(SUBSCRIPT_NUMS)
 
 
@@ -50,25 +50,27 @@ def replace_mw_punctuation(text: str) -> str:
     """Given input from the MW API, replaces the self-contained punctuation markup with its proper form.
     For instance, {ldquo} is replaced with the left quote character.
     """
-    return (text.replace('{ldquo}', '\u201c')
-            .replace('{rdquo}', '\u201d')
-            .replace('{bc}', '**:** '))
+    return (
+        text.replace("{ldquo}", "\u201c")
+        .replace("{rdquo}", "\u201d")
+        .replace("{bc}", "**:** ")
+    )
 
 
 TOKEN_TO_FUNC = {
-    'b': to_bold,
-    'inf': to_subscript,
-    'it': to_italics,
-    'sc': to_small_caps,
-    'sup': to_superscript,
-    'phrase': lambda x: to_bold(to_italics(x)),
-    'parahw': lambda x: to_bold(to_small_caps(x)),
-    'gloss': lambda x: f'[{x}]',
-    'wi': to_italics,
-    'qword': to_italics
+    "b": to_bold,
+    "inf": to_subscript,
+    "it": to_italics,
+    "sc": to_small_caps,
+    "sup": to_superscript,
+    "phrase": lambda x: to_bold(to_italics(x)),
+    "parahw": lambda x: to_bold(to_small_caps(x)),
+    "gloss": lambda x: f"[{x}]",
+    "wi": to_italics,
+    "qword": to_italics,
 }
 
-MW_GROUP_RE = re.compile(r'{(.+?)}(.*?){\/.*?}')
+MW_GROUP_RE = re.compile(r"{(.+?)}(.*?){\/.*?}")
 
 
 def mw_to_markdown(text: str) -> str:
@@ -84,4 +86,4 @@ def mw_to_markdown(text: str) -> str:
 
     subbed = re.sub(MW_GROUP_RE, replace, new_text)
     # now deal with single-quote markup like sx and a_link
-    return re.sub(r'{[^}|]+\|([^}|]*)[^}]*}', r'\1', subbed)
+    return re.sub(r"{[^}|]+\|([^}|]*)[^}]*}", r"\1", subbed)

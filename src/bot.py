@@ -28,50 +28,85 @@ class OwnerCommands(commands.Cog):
     def __init__(self, client):
         self.client = client
         # back-me-up list
-        self.bmu_list = ('PollardsRho', 'xoxo', 'Neyo708', 'Button{R}',
-                         '49PES', 'DanTheCurrencyExchangeMan')
-        self.standard_channels = ('general', 'academic-help', '🤖bot-commands', 'bot-commands')
+        self.bmu_list = (
+            "PollardsRho",
+            "xoxo",
+            "Neyo708",
+            "Button{R}",
+            "49PES",
+            "DanTheCurrencyExchangeMan",
+        )
+        self.standard_channels = (
+            "general",
+            "academic-help",
+            "🤖bot-commands",
+            "bot-commands",
+        )
         self.filters = (
-            ComboFilter((WatchedChannelFilter(self.standard_channels),
-                         RecentJoinFilter(), A2AFilter())),
-            ComboFilter((WatchedChannelFilter(self.standard_channels),
-                         MentionOrReply(), IsThankYou())),
-            ComboFilter((WatchedChannelFilter(self.standard_channels),
-                         MentionOrReply(), IsScold())),
-            ComboFilter((WatchedChannelFilter(self.standard_channels),
-                         AnyoneAgree(self.bmu_list))),
-            ComboFilter((WatchedChannelFilter(self.standard_channels),
-                         ForeignLangFilter()))
+            ComboFilter(
+                (
+                    WatchedChannelFilter(self.standard_channels),
+                    RecentJoinFilter(),
+                    A2AFilter(),
+                )
+            ),
+            ComboFilter(
+                (
+                    WatchedChannelFilter(self.standard_channels),
+                    MentionOrReply(),
+                    IsThankYou(),
+                )
+            ),
+            ComboFilter(
+                (
+                    WatchedChannelFilter(self.standard_channels),
+                    MentionOrReply(),
+                    IsScold(),
+                )
+            ),
+            ComboFilter(
+                (
+                    WatchedChannelFilter(self.standard_channels),
+                    AnyoneAgree(self.bmu_list),
+                )
+            ),
+            ComboFilter(
+                (WatchedChannelFilter(self.standard_channels), ForeignLangFilter())
+            ),
         )
 
-    @ commands.Cog.listener()
+    @commands.Cog.listener()
     async def on_ready(self):
         logging.info("Nano Is Ready!")
         game = discord.Game("with Sakamoto")
         await self.client.change_presence(status=discord.Status.idle, activity=game)
 
-    @ commands.Cog.listener()
+    @commands.Cog.listener()
     async def on_message(self, msg):
-        if hasattr(msg, 'author') and hasattr(msg.author, 'name') and msg.author.name == 'Nano':
+        if (
+            hasattr(msg, "author")
+            and hasattr(msg.author, "name")
+            and msg.author.name == "Nano"
+        ):
             return
 
         for f in self.filters:
-            if (await f.matches(msg)):
+            if await f.matches(msg):
                 logging.debug(f"{msg.content} matched {f}...")
                 await f.respond(msg)
             else:
                 logging.debug(f"{msg.content} did not match {f}...")
 
-    @ commands.command()
-    @ commands.is_owner()
+    @commands.command()
+    @commands.is_owner()
     async def servers(self, ctx):
         activeservers = self.client.guilds
         for guild in activeservers:
             await ctx.send(guild.name)
             logging.info(guild.name)
 
-    @ commands.command()
-    @ commands.is_owner()
+    @commands.command()
+    @commands.is_owner()
     async def scrape(self, ctx, limit: typing.Optional[int] = 200):
         self.msgs = []
         async with ctx.typing():
@@ -86,19 +121,21 @@ class OwnerCommands(commands.Cog):
                         if not msg.is_system():
                             author = msg.author
                             joined = user_joined(guild.get_member(author.id))
-                            if joined is None or (msg.created_at - joined) <= datetime.timedelta(hours=1):
+                            if joined is None or (
+                                msg.created_at - joined
+                            ) <= datetime.timedelta(hours=1):
                                 row = {
-                                    'id': msg.id,
-                                    'content': msg.clean_content,
-                                    'server': msg.guild.name,
-                                    'channel': msg.channel.name,
-                                    'created': msg.created_at,
-                                    'author': author.name,
-                                    'author_created': author.created_at,
-                                    'author_joined': joined
+                                    "id": msg.id,
+                                    "content": msg.clean_content,
+                                    "server": msg.guild.name,
+                                    "channel": msg.channel.name,
+                                    "created": msg.created_at,
+                                    "author": author.name,
+                                    "author_created": author.created_at,
+                                    "author_joined": joined,
                                 }
-                                if row['id'] not in self.msg_ids:
-                                    self.msg_ids.append(row['id'])
+                                if row["id"] not in self.msg_ids:
+                                    self.msg_ids.append(row["id"])
                                     self.msgs.append(row)
                                     num_msgs += 1
                     else:
@@ -106,19 +143,19 @@ class OwnerCommands(commands.Cog):
             logging.info("Done!")
         await ctx.send(f"Done! Scraped {num_msgs} messages")
 
-    @ commands.command()
-    @ commands.is_owner()
+    @commands.command()
+    @commands.is_owner()
     async def write(self, ctx, filename: typing.Optional[str] = "messages"):
         async with ctx.typing():
             msg_df = pd.DataFrame(self.msgs)
             msg_df.to_csv(filename + ".csv", index=False)
         await ctx.send(f"Done! Logged {len(self.msgs)} messages!")
 
-    @ commands.command("activate!")
+    @commands.command("activate!")
     async def get_em(self, ctx):
         await ctx.send("https://tenor.com/view/nano-nichijou-gif-21640782")
 
-    @ commands.command("back")
+    @commands.command("back")
     async def back_me_up(self, ctx, *args):
         if len(args) >= 2 and args[0] == "me" and args[1] == "up":
             # don't double-trigger
@@ -149,7 +186,7 @@ def setup(client):
     client.add_cog(MWCommands(client))
 
 
-bot = commands.Bot(f'{NAME}, ', intents=intents)
+bot = commands.Bot(f"{NAME}, ", intents=intents)
 setup(bot)
 bot.run(TOKEN)
 

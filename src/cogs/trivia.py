@@ -16,11 +16,11 @@ class TriviaCommands(commands.Cog):
         self.qs_with_answers = {}
         self.answer_choices = "🇦🇧🇨🇩"
 
-    @ commands.Cog.listener()
+    @commands.Cog.listener()
     async def on_ready(self):
         r = requests.get("https://opentdb.com/api_token.php?command=request")
         r.raise_for_status()
-        self.token = r.json()['token']
+        self.token = r.json()["token"]
 
     @commands.Cog.listener()
     async def on_reaction_add(self, rxn, user):
@@ -33,26 +33,28 @@ class TriviaCommands(commands.Cog):
                 del self.qs_with_answers[msg.id]
                 await msg.channel.send("Correct, good job {}!".format(user.mention))
 
-    @ commands.command()
+    @commands.command()
     async def trivia(self, ctx):
         # TODO support more features
-        r = requests.get(f"https://opentdb.com/api.php?amount=1&type=multiple&token={self.token}")
+        r = requests.get(
+            f"https://opentdb.com/api.php?amount=1&type=multiple&token={self.token}"
+        )
         json = r.json()
         logging.info(json)
-        if json['response_code'] != 0:
+        if json["response_code"] != 0:
             await ctx.send("There was an error!")
         else:
-            q = json['results'][0]
+            q = json["results"][0]
             logging.info(q)
-            cor_answer = q['correct_answer']
-            inc_answers = q['incorrect_answers']
+            cor_answer = q["correct_answer"]
+            inc_answers = q["incorrect_answers"]
             num_ans = len(inc_answers) + 1
             answers = inc_answers
             correct_answer_num = random.randrange(num_ans)
             answers.insert(correct_answer_num, cor_answer)
             text = f"{html.unescape(q['question'])}"
             for choice, answer in zip(self.answer_choices, answers):
-                text += f'\n{choice} → {html.unescape(answer)}'
+                text += f"\n{choice} → {html.unescape(answer)}"
 
             msg = await ctx.send(text)
             self.qs_with_answers[msg.id] = correct_answer_num

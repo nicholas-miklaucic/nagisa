@@ -20,9 +20,9 @@ class WikiCommands(commands.Cog):
                 search_term = str(sentences)
                 sentences = 2
             else:
-                search_term = ' '.join(args)
+                search_term = " ".join(args)
             logging.info(search_term)
-            searched = wikipedia.search(f'{search_term}')
+            searched = wikipedia.search(f"{search_term}")
             if searched:
                 suggested = searched[0]
             else:
@@ -30,8 +30,9 @@ class WikiCommands(commands.Cog):
 
             logging.info(suggested)
             try:
-                text = wikipedia.summary(suggested, sentences=sentences,
-                                         auto_suggest=False).replace('\n', '\n\n')
+                text = wikipedia.summary(
+                    suggested, sentences=sentences, auto_suggest=False
+                ).replace("\n", "\n\n")
             except wikipedia.exceptions.DisambiguationError:
                 text = "Your query wasn't specific enough."
             except wikipedia.exceptions.PageError:
