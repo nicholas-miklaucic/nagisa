@@ -15,8 +15,7 @@ import asyncio
 import html
 from urllib.parse import quote
 from langdetect import detect_langs, LangDetectException
-from googletrans import Translator
-from iso639 import to_name
+from googletrans import Translator, LANGUAGES
 
 from mw import mw_to_markdown
 
@@ -224,7 +223,9 @@ class ForeignLangFilter(MessageFilter):
         else:
             content = message.content
         translated = self.translator.translate(content)
-        await message.reply(f"Translated from {to_name(translated.src)}: {translated.text}")
+        if translated.src != 'en':
+            lang = LANGUAGES.get(translated.src.lower(), 'unknown')
+            await message.reply(f"Translated from {lang.capitalize()}: {translated.text}")
 
 
 class ComboFilter(MessageFilter):
