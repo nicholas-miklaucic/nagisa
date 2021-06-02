@@ -14,6 +14,9 @@ import random
 import asyncio
 import html
 from urllib.parse import quote
+from langdetect import detect_langs, LangDetectException
+from googletrans import Translator
+from iso639 import to_name
 
 from mw import mw_to_markdown
 
@@ -31,17 +34,19 @@ NAME = "Nano"
 BASEURL = "https://dictionaryapi.com/api/v3/references/collegiate/json/{}?key={}"
 
 
-def define(word, lemmatize=False):
+def define(word):
     j = requests.get(BASEURL.format(quote(word), MW_DICT_KEY)).json()
-    defs = []
-    if not defs and lemmatize:  # definition failed, try stem search
-        doc = nlp(word)
-        return define(doc[0].lemma_, False)
-    for definition in j:
-        if definition['meta']['id'].split(':')[0] == word:
-            defs.append(definition)
-
-    return defs
+    if j and isinstance(j[0], str):
+        # gave us a list of suggestions back, try first one
+        return define(j[0])
+    elif not j:
+        return []
+    else:
+        defs = []
+        for definition in j:
+            if definition['meta']['id'].split(':')[0] == word:
+                defs.append(definition)
+        return defs
 
 
 def get_all_senses(tree):
@@ -82,11 +87,10 @@ def def_to_embed(dfn):
         for _, sense in senses:
             dt = sense['dt']
             dt_text = [txt for (kw, txt) in dt if kw == 'text'][0]
-            if 'sn' in sense:
-                if sense['sn'][0].isdigit() and text:  # starts new definition
-                    embed.add_field(name='Definition', value='\n'.join(text), inline=False)
-                    text = []
-                text.append(sense['sn'] + mw_to_markdown(dt_text))
+            if 'sn' in sense and sense['sn'][0].isdigit() and text:  # starts new definition
+                embed.add_field(name='Definition', value='\n'.join(text), inline=False)
+                text = []
+            text.append('**' + sense.get('sn', '1') + '** ' + mw_to_markdown(dt_text))
 
     if text:
         embed.add_field(name='Definition', value='\n'.join(text), inline=False)
@@ -196,6 +200,25 @@ class AnyoneAgree(MessageFilter):
         await message.reply(f"I completely agree with {message.author.display_name} on this one")
 
 
+class ForeignLangFilter(MessageFilter):
+    translator = Translator()
+
+    async def matches(self, message):
+        if len(message.content) <= 30:
+            return False
+        else:
+            langs = detect_langs(message.content)
+            if langs and langs[0].lang == 'en':
+                # most likely match, continue
+                return False
+            else:
+                return any([lang.lang != 'en' and lang.prob > 0.99 for lang in langs])
+
+    async def respond(self, message):
+        translated = self.translator.translate(message.content)
+        await message.reply(f"Translated from {to_name(translated.src)}: {translated.text}")
+
+
 class ComboFilter(MessageFilter):
 
     def __init__(self, filters):
@@ -219,19 +242,18 @@ class OwnerCommands(commands.Cog):
         # back-me-up list
         self.bmu_list = ('PollardsRho', 'xoxo', 'Neyo708', 'Button{R}',
                          '49PES', 'DanTheCurrencyExchangeMan')
+        self.standard_channels = ('general', 'academic-help', '🤖bot-commands', 'bot-commands')
         self.filters = (
-            ComboFilter((WatchedChannelFilter(
-                ('general', 'academic-help', '🤖bot-commands', 'bot-commands')),
-                RecentJoinFilter(), A2AFilter())),
-            ComboFilter((WatchedChannelFilter(
-                ('general', 'academic-help', '🤖bot-commands', 'bot-commands')),
-                MentionOrReply(), IsThankYou())),
-            ComboFilter((WatchedChannelFilter(
-                ('general', 'academic-help', '🤖bot-commands', 'bot-commands')),
-                MentionOrReply(), IsScold())),
-            ComboFilter((WatchedChannelFilter(
-                ('general', 'academic-help', '🤖bot-commands', 'bot-commands')),
-                AnyoneAgree(self.bmu_list)))
+            ComboFilter((WatchedChannelFilter(self.standard_channels),
+                         RecentJoinFilter(), A2AFilter())),
+            ComboFilter((WatchedChannelFilter(self.standard_channels),
+                         MentionOrReply(), IsThankYou())),
+            ComboFilter((WatchedChannelFilter(self.standard_channels),
+                         MentionOrReply(), IsScold())),
+            ComboFilter((WatchedChannelFilter(self.standard_channels),
+                         AnyoneAgree(self.bmu_list))),
+            ComboFilter((WatchedChannelFilter(self.standard_channels),
+                         ForeignLangFilter()))
         )
         self.token = ""
         self.qs_with_answers = {}
@@ -249,8 +271,10 @@ class OwnerCommands(commands.Cog):
 
     @ commands.Cog.listener()
     async def on_message(self, msg):
-        logging.debug(msg.author)
-        logging.debug(msg.author.name)
+        if hasattr(msg, 'author') and hasattr(msg.author, 'name') and msg.author.name == 'Nano':
+            logging.info("not replying to self message")
+            return
+
         for f in self.filters:
             if (await f.matches(msg)):
                 logging.debug(f"{msg.content} matched {f}...")
@@ -387,7 +411,7 @@ class OwnerCommands(commands.Cog):
             self.qs_with_answers[msg.id] = correct_answer_num
             await asyncio.gather(*[msg.add_reaction(c) for c in self.answer_choices])
 
-    @commands.command()
+    @ commands.command()
     async def define(self, ctx, *args):
         async with ctx.typing():
             word = ' '.join(args)
@@ -401,7 +425,7 @@ class OwnerCommands(commands.Cog):
         else:
             await ctx.send("Couldn't find definition. Sorry! >_<")
 
-    @commands.command("back")
+    @ commands.command("back")
     async def back_me_up(self, ctx, *args):
         if len(args) >= 2 and args[0] == "me" and args[1] == "up":
             # don't double-trigger
@@ -409,6 +433,13 @@ class OwnerCommands(commands.Cog):
             # that filter instead of remaking it here
             if not await AnyoneAgree(self.bmu_list).matches(ctx.message):
                 await AnyoneAgree([], check_names=False).respond(ctx.message)
+
+    @commands.command()
+    async def translate(self, ctx, *args):
+        try:
+            await ForeignLangFilter().respond(ctx.message)
+        except LangDetectException:
+            await ctx.send("Could not infer source language. Darn! >_<")
 
 
 def setup(client):
