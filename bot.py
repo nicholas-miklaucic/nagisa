@@ -15,11 +15,14 @@ import asyncio
 import html
 from urllib.parse import quote
 
+from mw import mw_to_markdown
+
 logging.basicConfig(level=logging.INFO)
 
 intents = discord.Intents.default()
 intents.members = True
 
+nlp = spacy.load('en_core_web_sm')
 a2a_nlp = spacy.load("textcat_demo/training/model-best")
 
 NAME = "Nano"
@@ -28,14 +31,66 @@ NAME = "Nano"
 BASEURL = "https://dictionaryapi.com/api/v3/references/collegiate/json/{}?key={}"
 
 
-def define(word):
+def define(word, lemmatize=False):
     j = requests.get(BASEURL.format(quote(word), MW_DICT_KEY)).json()
     defs = []
+    if not defs and lemmatize:  # definition failed, try stem search
+        doc = nlp(word)
+        return define(doc[0].lemma_, False)
     for definition in j:
         if definition['meta']['id'].split(':')[0] == word:
-            defs += definition['shortdef']
+            defs.append(definition)
 
-    return [f'{i+1}: ' + x.capitalize() for (i, x) in enumerate(defs)]
+    return defs
+
+
+def get_all_senses(tree):
+    """Given a JSON definition tree, recurse, returning an ordered list of all of the senses."""
+    senses = []
+    if isinstance(tree, list):
+        # check for single sense
+        if len(tree) == 2 and tree[0] == 'sense':
+            senses.append(tree)
+        elif len(tree) == 2 and tree[0] == 'bs':
+            # these are weird idk why
+            _, sense_dict = tree
+            if 'sense' in sense_dict:
+                senses.append(['sense', sense_dict['sense']])
+        else:
+            # otherwise, check sublists
+            for el in tree:
+                senses += get_all_senses(el)
+    elif isinstance(tree, dict):
+        # map type like sseq, recurse on values
+        for value in tree.values():
+            senses += get_all_senses(value)
+    return senses
+
+
+def def_to_embed(dfn):
+    """Given a definition as a dictionary in JSON, outputs a Discord embed."""
+    logging.info(repr(dfn) + '\n\n\n')
+    embed = discord.Embed(
+        title=dfn['meta']['id'].split(':')[0],
+        description=dfn['hwi'].get('prs', ({},))[0].get('mw', ''),
+        type='rich'
+    )
+
+    text = []
+    for d in dfn['def']:
+        senses = get_all_senses(d)
+        for _, sense in senses:
+            dt = sense['dt']
+            dt_text = [txt for (kw, txt) in dt if kw == 'text'][0]
+            if 'sn' in sense:
+                if sense['sn'][0].isdigit() and text:  # starts new definition
+                    embed.add_field(name='Definition', value='\n'.join(text), inline=False)
+                    text = []
+                text.append(sense['sn'] + mw_to_markdown(dt_text))
+
+    if text:
+        embed.add_field(name='Definition', value='\n'.join(text), inline=False)
+    return embed
 
 
 def user_joined(user):
@@ -63,8 +118,8 @@ class WatchedChannelFilter(MessageFilter):
         self.channel_prefs = channel_prefs
 
     async def matches(self, message):
-        return any([message.channel.name.startswith(pref) for pref in
-                    self.channel_prefs])
+        return (type(message.channel) == discord.DMChannel or
+                any([message.channel.name.startswith(pref) for pref in self.channel_prefs]))
 
 
 class RecentJoinFilter(MessageFilter):
@@ -128,12 +183,13 @@ class IsScold(MessageFilter):
 
 class AnyoneAgree(MessageFilter):
 
-    def __init__(self, names):
+    def __init__(self, names, check_names=True):
         self.names = names
+        self.check_names = check_names
 
     async def matches(self, message):
         return (message.author is not None and
-                message.author.name in self.names and
+                (not self.check_names or message.author.name in self.names) and
                 "back me up" in message.content.lower())
 
     async def respond(self, message):
@@ -160,6 +216,9 @@ class ComboFilter(MessageFilter):
 class OwnerCommands(commands.Cog):
     def __init__(self, client):
         self.client = client
+        # back-me-up list
+        self.bmu_list = ('PollardsRho', 'xoxo', 'Neyo708', 'Button{R}',
+                         '49PES', 'DanTheCurrencyExchangeMan')
         self.filters = (
             ComboFilter((WatchedChannelFilter(
                 ('general', 'academic-help', '🤖bot-commands', 'bot-commands')),
@@ -172,14 +231,14 @@ class OwnerCommands(commands.Cog):
                 MentionOrReply(), IsScold())),
             ComboFilter((WatchedChannelFilter(
                 ('general', 'academic-help', '🤖bot-commands', 'bot-commands')),
-                AnyoneAgree(('PollardsRho', 'xoxo', 'Neyo708', 'Button{R}',
-                             '49PES', 'DanTheCurrencyExchangeMan'))))
+                AnyoneAgree(self.bmu_list)))
         )
         self.token = ""
         self.qs_with_answers = {}
         self.answer_choices = "🇦🇧🇨🇩"
+        self.definitions = {}
 
-    @commands.Cog.listener()
+    @ commands.Cog.listener()
     async def on_ready(self):
         logging.info("OwnerCommands Is Ready")
         game = discord.Game("with Sakamoto")
@@ -188,30 +247,39 @@ class OwnerCommands(commands.Cog):
         self.token = r.json()['token']
         await self.client.change_presence(status=discord.Status.idle, activity=game)
 
-    @commands.Cog.listener()
+    @ commands.Cog.listener()
     async def on_message(self, msg):
-        logging.info(msg.author)
-        logging.info(msg.author.name)
+        logging.debug(msg.author)
+        logging.debug(msg.author.name)
         for f in self.filters:
             if (await f.matches(msg)):
-                logging.info(f"{msg.content} matched {f}...")
+                logging.debug(f"{msg.content} matched {f}...")
                 await f.respond(msg)
             else:
-                logging.info(f"{msg.content} did not match {f}...")
+                logging.debug(f"{msg.content} did not match {f}...")
 
-    @commands.Cog.listener()
+    @ commands.Cog.listener()
     async def on_reaction_add(self, rxn, user):
         msg = rxn.message
-        logging.info(msg.id)
-        logging.info(self.qs_with_answers)
-        logging.info(rxn.me)
-        if msg.id in self.qs_with_answers and user.name != "Nano":
-            logging.info(rxn)
-            logging.info(user)
+        if user.name == NAME:
+            return
+        elif msg.id in self.qs_with_answers:
             correct_char = self.answer_choices[self.qs_with_answers[msg.id]]
             if str(rxn) == correct_char:
                 del self.qs_with_answers[msg.id]
                 await msg.channel.send("Correct, good job {}!".format(user.mention))
+        elif msg.id in self.definitions:
+            i, defs = self.definitions[msg.id]
+            if str(rxn) == '⬅':
+                new_i = (i - 1) % len(defs)
+            elif str(rxn) == '\u27a1':
+                new_i = (i + 1) % len(defs)
+            else:
+                new_i = i
+
+            if new_i != i:
+                self.definitions[msg.id] = (new_i, defs)
+                await msg.edit(embed=defs[new_i].set_footer(text=f'{new_i+1}/{len(defs)}'))
 
     @ commands.command()
     @ commands.is_owner()
@@ -266,17 +334,24 @@ class OwnerCommands(commands.Cog):
         await ctx.send(f"Done! Logged {len(self.msgs)} messages!")
 
     @ commands.command()
-    async def wiki(self, ctx, *args):
+    async def wiki(self, ctx, sentences: typing.Optional[int] = 2, *args):
         async with ctx.typing():
-            search_term = ' '.join(args)
+            if not args:
+                search_term = str(sentences)
+                sentences = 2
+            else:
+                search_term = ' '.join(args)
             logging.info(search_term)
-            suggested = wikipedia.suggest(search_term)
-            if suggested is None:
-                suggested = wikipedia.search(search_term)[0]
+            searched = wikipedia.search(f'{search_term}')
+            if searched:
+                suggested = searched[0]
+            else:
+                suggested = wikipedia.suggest(search_term)
 
             logging.info(suggested)
             try:
-                text = wikipedia.summary(suggested, sentences=2).replace('\n', '\n\n')
+                text = wikipedia.summary(suggested, sentences=sentences,
+                                         auto_suggest=False).replace('\n', '\n\n')
             except wikipedia.exceptions.DisambiguationError:
                 text = "Your query wasn't specific enough."
             except wikipedia.exceptions.PageError:
@@ -316,11 +391,24 @@ class OwnerCommands(commands.Cog):
     async def define(self, ctx, *args):
         async with ctx.typing():
             word = ' '.join(args)
-            text = '\n'.join(define(word))
+            text = [def_to_embed(d) for d in define(word)]
+            text = [emb for emb in text if emb.fields]
         if text:
-            await ctx.send(text)
+            msg = await ctx.send(embed=text[0].set_footer(text=f'1/{len(text)}'))
+            self.definitions[msg.id] = (0, text)
+            await msg.add_reaction("⬅")
+            await msg.add_reaction("\u27a1")
         else:
             await ctx.send("Couldn't find definition. Sorry! >_<")
+
+    @commands.command("back")
+    async def back_me_up(self, ctx, *args):
+        if len(args) >= 2 and args[0] == "me" and args[1] == "up":
+            # don't double-trigger
+            # TODO maybe refactor the filters list to be a named tuple so you can just reference
+            # that filter instead of remaking it here
+            if not await AnyoneAgree(self.bmu_list).matches(ctx.message):
+                await AnyoneAgree([], check_names=False).respond(ctx.message)
 
 
 def setup(client):
