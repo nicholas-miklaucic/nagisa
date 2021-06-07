@@ -10,6 +10,7 @@ import spacy
 import datetime
 import logging
 from constants import NAME
+import re
 
 nlp = spacy.load("en_core_web_sm")
 a2a_nlp = spacy.load("textcat_demo/training/model-best")
@@ -124,6 +125,13 @@ class ForeignLangFilter(MessageFilter):
         elif message.content.startswith("Nano, "):
             return False
         else:
+            math_syms = "+-/*=$()"
+            if sum([1 if sym in message.content else 0 for sym in math_syms]) >= 3:
+                return False
+            # detect emotes: more than 8 numeric characters in a row
+            if re.search("\\d" * 8, message.content):
+                return False
+
             langs = detect_langs(message.content)
             if langs and langs[0].lang == "en":
                 # most likely match, continue
@@ -133,9 +141,9 @@ class ForeignLangFilter(MessageFilter):
 
     async def respond(self, message):
         if message.content.startswith("Nano, translate"):
-            content = message.content[len("Nano, translate") :]
+            content = message.content[len("Nano, translate"):]
         elif message.content.startswith("Nano, tl"):
-            content = message.content[len("Nano, tl") :]
+            content = message.content[len("Nano, tl"):]
         else:
             content = message.content
         translated = self.translator.translate(content)
