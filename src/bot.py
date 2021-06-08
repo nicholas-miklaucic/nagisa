@@ -3,7 +3,6 @@
 import discord
 from discord.ext import commands
 import os
-from secrets import TOKEN
 import logging
 import pandas as pd
 import typing
