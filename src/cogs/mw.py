@@ -6,7 +6,6 @@ with the API's use of markup."""
 import re
 import requests
 from urllib.parse import quote
-from secrets import MW_DICT_KEY
 
 
 def to_small_caps(text: str) -> str:
@@ -97,7 +96,7 @@ BASEURL = "https://dictionaryapi.com/api/v3/references/collegiate/json/{}?key={}
 
 
 def define(word):
-    j = requests.get(BASEURL.format(quote(word), MW_DICT_KEY)).json()
+    j = requests.get(BASEURL.format(quote(word), os.environ['MW_DICT_KEY'])).json()
     if j and isinstance(j[0], str):
         # gave us a list of suggestions back, try first one
         return define(j[0])

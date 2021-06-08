@@ -2,7 +2,8 @@
 
 import discord
 from discord.ext import commands
-from secrets import TOKEN, MW_DICT_KEY
+import os
+from secrets import TOKEN
 import logging
 import pandas as pd
 import typing
@@ -188,7 +189,7 @@ def setup(client):
 
 bot = commands.Bot(f"{NAME}, ", intents=intents)
 setup(bot)
-bot.run(TOKEN)
+bot.run(os.environ['NANO_TOKEN'])
 
 
 # @client.event
