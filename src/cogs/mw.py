@@ -6,6 +6,7 @@ with the API's use of markup."""
 import re
 import requests
 from urllib.parse import quote
+import os
 
 
 def to_small_caps(text: str) -> str:
