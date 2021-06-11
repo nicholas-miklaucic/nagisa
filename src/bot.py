@@ -11,11 +11,14 @@ import requests
 import random
 import asyncio
 import html
+import sys
+import configparser
 from constants import NAME
 from filters import *
 from cogs.trivia import TriviaCommands
 from cogs.mw_cog import MWCommands
 from cogs.wiki import WikiCommands
+from cogs.weather import WeatherCommands
 
 
 logging.basicConfig(level=logging.INFO)
@@ -184,6 +187,7 @@ def setup(client):
     client.add_cog(WikiCommands(client))
     client.add_cog(TranslationCommands(client))
     client.add_cog(MWCommands(client))
+    client.add_cog(WeatherCommands(client))
 
 
 bot = commands.Bot(f"{NAME}, ", intents=intents)
