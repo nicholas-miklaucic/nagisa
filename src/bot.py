@@ -19,6 +19,7 @@ from cogs.trivia import TriviaCommands
 from cogs.mw_cog import MWCommands
 from cogs.wiki import WikiCommands
 from cogs.weather import WeatherCommands
+from cogs.resources import ResourcesCommands
 
 
 logging.basicConfig(level=logging.INFO)
@@ -156,6 +157,7 @@ class OwnerCommands(commands.Cog):
 
     @commands.command("activate!")
     async def get_em(self, ctx):
+        """Rocket PUNCH!"""
         await ctx.send("https://tenor.com/view/nano-nichijou-gif-21640782")
 
     @commands.command("back")
@@ -171,6 +173,7 @@ class OwnerCommands(commands.Cog):
 class TranslationCommands(commands.Cog):
     @commands.command()
     async def translate(self, ctx, *args):
+        """Translate the given text into English, guessing its source language."""
         try:
             await ForeignLangFilter().respond(ctx.message)
         except LangDetectException:
@@ -178,6 +181,7 @@ class TranslationCommands(commands.Cog):
 
     @commands.command()
     async def tl(self, ctx, *args):
+        """Alias of translate."""
         await self.translate(ctx, *args)
 
 
@@ -188,6 +192,7 @@ def setup(client):
     client.add_cog(TranslationCommands(client))
     client.add_cog(MWCommands(client))
     client.add_cog(WeatherCommands(client))
+    client.add_cog(ResourcesCommands(client))
 
 
 bot = commands.Bot(f"{NAME}, ", intents=intents)

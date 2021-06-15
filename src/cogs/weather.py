@@ -23,6 +23,7 @@ class WeatherCommands(commands.Cog):
 
     @commands.command()
     async def weather(self, ctx, *args):
+        """Show the current conditions and "feels like" temperature in the given area."""
         async with ctx.typing():
             query = ' '.join(args)
             if ',' in query:  # split into list so the comma makes it into the query

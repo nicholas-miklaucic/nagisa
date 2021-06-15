@@ -15,6 +15,8 @@ class WikiCommands(commands.Cog):
 
     @commands.command()
     async def wiki(self, ctx, sentences: typing.Optional[int] = 2, *args):
+        """Get the first sentences of the Wikipedia entry on the given topic. If the first input is
+        an number, get that many sentences instead of the default 2."""
         async with ctx.typing():
             if not args:
                 search_term = str(sentences)

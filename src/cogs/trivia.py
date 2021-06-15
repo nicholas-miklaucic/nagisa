@@ -35,6 +35,7 @@ class TriviaCommands(commands.Cog):
 
     @commands.command()
     async def trivia(self, ctx):
+        """Show a trivia question."""
         # TODO support more features
         r = requests.get(
             f"https://opentdb.com/api.php?amount=1&type=multiple&token={self.token}"

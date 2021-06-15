@@ -83,6 +83,7 @@ class MWCommands(commands.Cog):
 
     @commands.command()
     async def define(self, ctx, *args):
+        """Give all of the definitions of a word, using Merriam Webster's dictionary."""
         async with ctx.typing():
             word = " ".join(args)
             text = [def_to_embed(d) for d in define(word)]

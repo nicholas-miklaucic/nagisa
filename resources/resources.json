@@ -1,0 +1,48 @@
+{
+    "general": [
+        {
+            "name": "Khan Academy",
+            "value": "[Open education platform in a dizzying array of subjects](https://www.khanacademy.org/)",
+            "inline": false
+        },
+        {
+            "name": "OpenStax",
+            "value": "[Huge library of free high-quality textbooks](https://openstax.org/)",
+            "inline": false
+        }
+    ],
+    "math": [
+        {
+            "name": "Wolfram Alpha",
+            "value": "[General-purpose calculator for all kinds of math and science: use =pup to run queries inside the server!](https://www.wolframalpha.com/)",
+            "inline": false
+        },
+        {
+            "name": "Desmos",
+            "value": "[Very useful interactive graphing calculator](https://www.desmos.com/)",
+            "inline": false
+        }
+    ],
+    "writing": [
+        {
+            "name": "Purdue OWL",
+            "value": "[Fabulous, very comprehensive source for all kinds of writing](https://owl.purdue.edu/owl/teacher_and_tutor_resources/writing_instructors/non_purdue_users.html)",
+            "inline": false
+        },
+        {
+            "name": "Grammarly",
+            "value": "[Free spelling and grammar check: not perfect but will catch some things](https://www.grammarly.com/grammar-check)",
+            "inline": false
+        },
+        {
+            "name": "ZoteroBib",
+            "value": "[Easy online citation generator](https://zbib.org/)",
+            "inline": false
+        },
+        {
+            "name": "Zotero",
+            "value": "[Program and browser extension that lets you easily manage citations](https://www.zotero.org/)",
+            "inline": false
+        }
+    ]
+}
