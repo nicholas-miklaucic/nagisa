@@ -20,6 +20,7 @@ from cogs.mw_cog import MWCommands
 from cogs.wiki import WikiCommands
 from cogs.weather import WeatherCommands
 from cogs.resources import ResourcesCommands
+from cogs.unicode import UnicodeCommands
 
 
 logging.basicConfig(level=logging.INFO)
@@ -193,6 +194,7 @@ def setup(client):
     client.add_cog(MWCommands(client))
     client.add_cog(WeatherCommands(client))
     client.add_cog(ResourcesCommands(client))
+    client.add_cog(UnicodeCommands(client))
 
 
 bot = commands.Bot(f"{NAME}, ", intents=intents)
