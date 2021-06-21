@@ -9,7 +9,7 @@ import tabulate
 import unicodedata
 from fuzzywuzzy import process
 
-UDATA = "https://www.unicode.org/Public/UCD/latest/ucd/UnicodeData.txt"
+UDATA = "https://raw.githubusercontent.com/latex3/unicode-data/main/UnicodeData.txt"
 df = pd.read_csv(
     UDATA,
     sep=';',
