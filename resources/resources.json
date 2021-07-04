@@ -48,6 +48,11 @@
             "name": "Zotero",
             "value": "[Program and browser extension that lets you easily manage citations](https://www.zotero.org/)",
             "inline": false
+        },
+        {
+            "name": "The Elements of Style",
+            "value": "[A little outdated, but a true classic: a concise guide to writing grammatically and writing well.](https://faculty.washington.edu/heagerty/Courses/b572/public/StrunkWhite.pdf)",
+            "inline", false
         }
     ]
 }
