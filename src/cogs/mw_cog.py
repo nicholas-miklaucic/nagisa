@@ -5,6 +5,7 @@ from discord.ext import commands
 from .mw import define, mw_to_markdown
 import discord
 from constants import NAME
+import logging
 
 
 def get_all_senses(tree):
@@ -53,6 +54,14 @@ def def_to_embed(dfn):
 
     if text:
         embed.add_field(name="Definition", value="\n".join(text), inline=False)
+
+        try:
+            et = mw_to_markdown(dfn['et'][0][1])
+            embed.add_field(name="Etymology", value=et)
+
+        except KeyError as e:
+            logging.error(e)
+
     return embed
 
 

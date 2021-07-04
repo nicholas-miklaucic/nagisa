@@ -97,6 +97,7 @@ BASEURL = "https://dictionaryapi.com/api/v3/references/collegiate/json/{}?key={}
 
 
 def define(word):
+    """Returns a list of definitions, with all of the data still there."""
     j = requests.get(BASEURL.format(quote(word), os.environ['MW_DICT_KEY'])).json()
     if j and isinstance(j[0], str):
         # gave us a list of suggestions back, try first one
