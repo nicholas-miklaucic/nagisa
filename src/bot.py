@@ -21,6 +21,7 @@ from cogs.wiki import WikiCommands
 from cogs.weather import WeatherCommands
 from cogs.resources import ResourcesCommands
 from cogs.unicode import UnicodeCommands
+from cogs.images import ImageCommands
 
 
 logging.basicConfig(level=logging.INFO)
@@ -195,6 +196,7 @@ def setup(client):
     client.add_cog(WeatherCommands(client))
     client.add_cog(ResourcesCommands(client))
     client.add_cog(UnicodeCommands(client))
+    client.add_cog(ImageCommands(client))
 
 
 bot = commands.Bot(f"{NAME}, ", intents=intents)

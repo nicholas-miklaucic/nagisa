@@ -26,16 +26,17 @@ class UnicodeCommands(commands.Cog):
     async def unicode(self, ctx, *args):
         """Returns a table of Unicode code points that best match the given plaintext search.
         If the first argument is a number, shows that many results."""
-        if args and args[0].isnumeric():
-            limit = int(args[0])
-            query = ' '.join(args[1:])
-        else:
-            limit = 3
-            query = ' '.join(args)
-        print(limit, query)
-        results = process.extract(query, df['name'], limit=limit)
-        output = [('Name', 'Code', 'Character')]
-        for name, score, i in results:
-            output.append((name, df.loc[i, 'code'], unicodedata.lookup(name)))
+        async with ctx.typing():
+            if args and args[0].isnumeric():
+                limit = int(args[0])
+                query = ' '.join(args[1:])
+            else:
+                limit = 3
+                query = ' '.join(args)
+
+            results = process.extract(query, df['name'], limit=limit)
+            output = [('Name', 'Code', 'Character')]
+            for name, score, i in results:
+                output.append((name, df.loc[i, 'code'], unicodedata.lookup(name)))
 
         await ctx.send('```\n' + tabulate.tabulate(output, tablefmt='simple') + '\n```')
