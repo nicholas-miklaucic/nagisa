@@ -4,6 +4,7 @@ import typing
 import discord
 import logging
 import wikipedia
+import re
 from discord.ext import commands
 
 """Cog to support wikipedia functionality."""
@@ -34,7 +35,12 @@ class WikiCommands(commands.Cog):
             try:
                 text = wikipedia.summary(
                     suggested, sentences=sentences, auto_suggest=False
-                ).replace("\n", "\n\n")
+                )
+                # MediaWiki has some super messed up formatting problems with TeX, do my best to
+                # paper over the gaping maw of the problems with this format
+                text = re.sub(r'\n +', '', text)
+                text = re.sub(r'(\w+)\{.*\}', r'\1', text)
+                text = text.replace('\n', '\n\n')
             except wikipedia.exceptions.DisambiguationError:
                 text = "Your query wasn't specific enough."
             except wikipedia.exceptions.PageError:
